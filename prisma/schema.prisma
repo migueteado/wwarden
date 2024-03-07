@@ -18,14 +18,16 @@ model User {
   username                          String                              @unique
   password                          String
   accounts                          Account[]
-  groups                            Group[]
+  pockets                           Pocket[]
+  groups                            UserGroup[]
   createdAt                         DateTime                            @default(now())
   updatedAt                         DateTime                            @updatedAt
 }
 
-model Group {
+model UserGroup {
   id                                String                              @id @default(uuid())
   name                              String                              @unique
+  description                       String
   users                             User[]
   createdAt                         DateTime                            @default(now())
   updatedAt                         DateTime                            @updatedAt
@@ -37,6 +39,8 @@ model Account {
   userId                            String
   user                              User                                @relation(fields: [userId], references: [id])
   transactions                      Transaction[]                       
+  pocketAccounts                    PocketAccount[]
+  recurringTransactions             RecurrentTransaction[]
   createdAt                         DateTime                            @default(now())
   updatedAt                         DateTime                            @updatedAt
 }
@@ -44,7 +48,6 @@ model Account {
 enum TransactionType {
   INCOME
   EXPENSE
-  INTERNAL
 }
 
 model Categories {
@@ -53,6 +56,7 @@ model Categories {
   name                              String                              @unique
   subcategories                     Subcategories[]
   transactions                      Transaction[]
+  recurringTransactions             RecurrentTransaction[]
   createdAt                         DateTime                            @default(now())
   updatedAt                         DateTime                            @updatedAt
 }
@@ -63,6 +67,7 @@ model Subcategories {
   category                          Categories                          @relation(fields: [categoryId], references: [id])
   name                              String                              @unique
   transactions                      Transaction[]
+  recurringTransactions             RecurrentTransaction[]
   createdAt                         DateTime                            @default(now())
   updatedAt                         DateTime                            @updatedAt
 }
@@ -78,13 +83,110 @@ model Transaction {
   description                       String
   reference                         String?
   amount                            Decimal
+  rate                              Decimal
+  usdValue                          Decimal
   currency                          String
   accountId                         String
   account                           Account                             @relation(fields: [accountId], references: [id])
   date                              DateTime
-  sentTransactionId                 String?                             @unique       
-  sentTransaction                   Transaction?                        @relation("InternalTransaction", fields: [sentTransactionId], references: [id])
-  receivedTransaction               Transaction?                        @relation("InternalTransaction")
+  transfersFrom                     Transfer?                           @relation("TransferFromTransaction")
+  transfersTo                       Transfer?                           @relation("TransferToTransaction")
+  pocketAccountId                   String
+  pocketAccount                     PocketAccount                       @relation(fields: [pocketAccountId], references: [id])
+  isRecurrent                       Boolean                             @default(false)
+  createdAt                         DateTime                            @default(now())
+  updatedAt                         DateTime                            @updatedAt
+}
+
+model Transfer {
+  id                                String                              @id @default(uuid())
+  fromTransactionId                 String                              @unique
+  fromTransaction                   Transaction                         @relation("TransferFromTransaction", fields: [fromTransactionId], references: [id])
+  toTransactionId                   String                              @unique
+  toTransaction                     Transaction                         @relation("TransferToTransaction", fields: [toTransactionId], references: [id])
+  isExchange                        Boolean                             @default(false)
+  rate                              Decimal
+  usdCost                           Decimal
+  reference                         String?
+  description                       String
+  createdAt                         DateTime                            @default(now())
+  updatedAt                         DateTime                            @updatedAt
+}
+
+model Pocket {
+  id                                String                              @id @default(uuid())
+  name                              String                              @unique
+  description                       String
+  userId                            String
+  user                              User                                @relation(fields: [userId], references: [id])
+  pocketAccounts                    PocketAccount[]
+  createdAt                         DateTime                            @default(now())
+  updatedAt                         DateTime                            @updatedAt
+}
+
+model PocketAccount {
+  id                                String                              @id @default(uuid())
+  amount                            Decimal
+  currency                          String
+  pocketId                          String
+  pocket                            Pocket                              @relation(fields: [pocketId], references: [id])
+  accountId                         String
+  account                           Account                             @relation(fields: [accountId], references: [id])
+  logs                              PocketAccountLog[]
+  transactions                      Transaction[]
+  createdAt                         DateTime                            @default(now())
+  updatedAt                         DateTime                            @updatedAt
+}
+
+model PocketAccountLog {
+  id                                String                              @id @default(uuid())
+  pocketAccountId                   String
+  pocketAccount                     PocketAccount                       @relation(fields: [pocketAccountId], references: [id])
+  amount                            Decimal
+  createdAt                         DateTime                            @default(now())
+  updatedAt                         DateTime                            @updatedAt
+}
+
+enum RecurrenceType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum WeekDays {
+  SUNDAY
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+}
+
+model RecurrentTransaction {
+  id                                String                              @id @default(uuid())
+  type                              RecurrenceType
+  // Every X days, weeks, months, years
+  every                             Int
+  // For weekly
+  weekDays                          WeekDays[]
+  startsAt                          DateTime
+  endsAt                            DateTime?
+  transactionType                   TransactionType
+  categoryId                        String
+  category                          Categories                          @relation(fields: [categoryId], references: [id])
+  subcategoryId                     String
+  subcategory                       Subcategories                       @relation(fields: [subcategoryId], references: [id])
+  entity                            String?
+  description                       String
+  amount                            Decimal
+  currency                          String
+  accountId                         String
+  account                           Account                             @relation(fields: [accountId], references: [id])
+  occurrences                       Int?
+  lastOccurrence                    DateTime?
+  nextOccurrence                    DateTime?
   createdAt                         DateTime                            @default(now())
   updatedAt                         DateTime                            @updatedAt
 }
