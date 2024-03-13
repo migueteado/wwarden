@@ -9,6 +9,7 @@ import { healthz } from "./lib/helpers/healthz";
 import cors from "@elysiajs/cors";
 import { handleSignup } from "./auth/handlers/handleSignup";
 import { handleSignin } from "./auth/handlers/handleSignIn";
+import { handleGetCategories } from "./categories/handlers/handleGetCategories";
 
 const app = new Elysia()
   .use(swagger())
@@ -31,6 +32,9 @@ const app = new Elysia()
   })
   .group("/auth", (app) => {
     return app.use(handleSignup).use(handleSignin);
+  })
+  .group("/categories", (app) => {
+    return app.use(handleGetCategories);
   })
   .listen(3000);
 
